@@ -1,0 +1,262 @@
+{
+	"info": {
+		"_postman_id": "0fe69e65-a0e0-44b1-9d8f-6dc1d63e120c",
+		"name": "go-chat-api",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "24718931",
+		"_collection_link": "https://galactic-sunset-444021.postman.co/workspace/test~8c07289e-7384-4d00-97f1-b5068516cfef/collection/24718931-0fe69e65-a0e0-44b1-9d8f-6dc1d63e120c?action=share&source=collection_link&creator=24718931"
+	},
+	"item": [
+		{
+			"name": "Signup",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"userName\":\"natnael\",\r\n    \"email\":\"natnaelGashu2022@gmail.com\",\r\n    \"password\":\"Password\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{BASE_URL}}/api/auth/signup",
+					"host": [
+						"{{BASE_URL}}"
+					],
+					"path": [
+						"api",
+						"auth",
+						"signup"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Login",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Parse the JSON response\r",
+							"let response = pm.response.json();\r",
+							"\r",
+							"// Extract token (adjust key if needed)\r",
+							"let token = response.token\r",
+							"\r",
+							"// Ensure token exists\r",
+							"if (!token) {\r",
+							"    pm.test(\"Token is present\", function () {\r",
+							"        pm.expect.fail(\"No token found in login response\");\r",
+							"    });\r",
+							"} else {\r",
+							"    // Save token to environment variable\r",
+							"    pm.globals.set(\"token\", token);\r",
+							"\r",
+							"    pm.test(\"Saved token to environment\", function () {\r",
+							"        pm.expect(token).to.be.a(\"string\");\r",
+							"    });\r",
+							"\r",
+							"    console.log(\"Token saved:\", token);\r",
+							"}"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"email\":\"natnaelGashu2022@gmail.com\",\r\n    \"password\":\"Password\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{BASE_URL}}/api/auth/login",
+					"host": [
+						"{{BASE_URL}}"
+					],
+					"path": [
+						"api",
+						"auth",
+						"login"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Me",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"email\":\"natnaelGashu2022@gmail.com\",\r\n    \"password\":\"Password\"\r\n}"
+				},
+				"url": {
+					"raw": "{{BASE_URL}}/api/me",
+					"host": [
+						"{{BASE_URL}}"
+					],
+					"path": [
+						"api",
+						"me"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Group",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\":\"test group\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{BASE_URL}}/api/groups",
+					"host": [
+						"{{BASE_URL}}"
+					],
+					"path": [
+						"api",
+						"groups"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "See Group Messages",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\":\"test group\"\r\n}"
+				},
+				"url": {
+					"raw": "{{BASE_URL}}/api/groups/e62d629b-3ebc-4b48-a0bd-f6486102a70d/messages",
+					"host": [
+						"{{BASE_URL}}"
+					],
+					"path": [
+						"api",
+						"groups",
+						"e62d629b-3ebc-4b48-a0bd-f6486102a70d",
+						"messages"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "MyGroups",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\":\"test group\"\r\n}"
+				},
+				"url": {
+					"raw": "{{BASE_URL}}/api/groups",
+					"host": [
+						"{{BASE_URL}}"
+					],
+					"path": [
+						"api",
+						"groups"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "JoinGroup",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\":\"test group\"\r\n}"
+				},
+				"url": {
+					"raw": "{{BASE_URL}}/api/groups/e62d629b-3ebc-4b48-a0bd-f6486102a70d/join",
+					"host": [
+						"{{BASE_URL}}"
+					],
+					"path": [
+						"api",
+						"groups",
+						"e62d629b-3ebc-4b48-a0bd-f6486102a70d",
+						"join"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{token}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	]
+}

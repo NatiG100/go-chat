@@ -17,6 +17,7 @@ type UserRepository interface {
 
 type GroupRepository interface {
 	CreateGroup(ctx context.Context, g *Group) error
+	MyGroups(ctx context.Context, userId uuid.UUID) ([]Group, error)
 	AddGroupMember(ctx context.Context, groupID, userID uuid.UUID) error
 	ListGroupMembers(ctx context.Context, groupID uuid.UUID) ([]User, error)
 }

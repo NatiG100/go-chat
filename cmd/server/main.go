@@ -49,6 +49,7 @@ func main() {
 	{
 		auth.GET("/me", h.Me)
 		auth.POST("/groups", h.CreateGroup)
+		auth.GET("/groups", h.MyGroups)
 		auth.POST("/groups/:id/join", h.JoinGroup)
 		auth.GET("/groups/:id/members", h.ListGroupMembers)
 		auth.GET("/messages", h.GetPrivateHistory)

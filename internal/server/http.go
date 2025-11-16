@@ -78,6 +78,18 @@ func (h *Handler) CreateGroup(c *gin.Context) {
 	_ = h.repos.GroupRepo().AddGroupMember(c.Request.Context(), g.ID, owner)
 	c.JSON(http.StatusCreated, g)
 }
+func (h *Handler) MyGroups(c *gin.Context){
+	
+	idI, _ := c.Get("user_id")
+	uid := idI.(uuid.UUID)
+	groups,err := h.repos.GroupRepo().MyGroups(c.Request.Context(),uid)
+	if err!=nil{
+		c.JSON(http.StatusNotFound, gin.H{"message":err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, groups)
+
+}
 
 func (h *Handler) JoinGroup(c *gin.Context) {
 	gid, err := uuid.Parse(c.Param("id"))

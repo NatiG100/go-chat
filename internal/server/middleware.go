@@ -23,7 +23,7 @@ func AuthMiddleware(jwt *drivers.JWTManager) gin.HandlerFunc {
 			auth = after
 		}
 
-		// verify token → returns uuid.UUID
+		// verify token -> returns uuid.UUID
 		userID, err := jwt.Verify(auth)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Error()})

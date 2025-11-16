@@ -5,159 +5,159 @@ import (
 	"errors"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"golang.org/x/crypto/bcrypt"
-
 	"example.com/go-chat/internal/core"
+	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type Postgres struct {
-	pool *pgxpool.Pool
+	db *gorm.DB
 }
 
 func NewPostgres(ctx context.Context, dsn string) (*Postgres, error) {
-	cfg, err := pgxpool.ParseConfig(dsn)
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		return nil, err
 	}
-	p, err := pgxpool.NewWithConfig(ctx, cfg)
-	if err != nil {
+
+	err = db.AutoMigrate(
+		&core.Group{},
+		&core.User{},
+		&core.Message{},
+		&core.GroupMember{},
+	)
+	if err!=nil{
 		return nil, err
 	}
-	return &Postgres{pool: p}, nil
+
+	return &Postgres{db: db}, nil
 }
 
-func (p *Postgres) Close(ctx context.Context) { p.pool.Close() }
-
-// -- User operations
-func (p *Postgres) CreateUser(ctx context.Context, u *core.User, plainPassword string) error {
-	h, err := bcrypt.GenerateFromPassword([]byte(plainPassword), bcrypt.DefaultCost)
+func (p *Postgres) Close(ctx context.Context) error {
+	sqlDB, err := p.db.DB()
 	if err != nil {
 		return err
 	}
+	return sqlDB.Close()
+}
+
+
+func (p *Postgres) CreateUser(ctx context.Context, u *core.User, plainPassword string) error{
+	hash, err := bcrypt.GenerateFromPassword([]byte(plainPassword), bcrypt.DefaultCost)
+	if err != nil{
+		return err
+	}
 	u.ID = uuid.New()
-	u.PasswordHash = string(h)
-	q := `INSERT INTO users (id, username, email, password_hash, created_at) VALUES ($1,$2,$3,$4,$5)`
-	_, err = p.pool.Exec(ctx, q, u.ID, u.Username, u.Email, u.PasswordHash, time.Now())
-	return err
+	u.PasswordHash = string(hash)
+	u.CreatedAt = time.Now()
+	return p.db.WithContext(ctx).Create(u).Error
 }
 
-func (p *Postgres) GetUserByEmail(ctx context.Context, email string) (*core.User, error) {
-	q := `SELECT id, username, email, password_hash, created_at FROM users WHERE email=$1`
-	row := p.pool.QueryRow(ctx, q, email)
+func( p * Postgres) GetUserByEmail(ctx context.Context, email string) (*core .User, error){
 	var u core.User
-	if err := row.Scan(&u.ID, &u.Username, &u.Email, &u.PasswordHash, &u.CreatedAt); err != nil {
+	err :=  p.db.WithContext(ctx).Where("email = ?", email).First(&u).Error
+	if err != nil{
+		return nil, err
+	}
+return &u, nil
+}
+
+func (p * Postgres) GetUserByID(ctx context.Context, id uuid.UUID) (*core.User, error){
+	var u core.User
+	err := p.db.WithContext(ctx).First(&u, "id = ?",id).Error
+	if err!= nil{
 		return nil, err
 	}
 	return &u, nil
 }
 
-func (p *Postgres) GetUserByID(ctx context.Context, id uuid.UUID) (*core.User, error) {
-	q := `SELECT id, username, email, password_hash, created_at FROM users WHERE id=$1`
-	row := p.pool.QueryRow(ctx, q, id)
-	var u core.User
-	if err := row.Scan(&u.ID, &u.Username, &u.Email, &u.PasswordHash, &u.CreatedAt); err != nil {
+func (p *Postgres) VerifyPassword(ctx context.Context, email, plain string) (*core.User, error){
+	u, err := p.GetUserByEmail(ctx,email)
+	if err!=nil{
 		return nil, err
 	}
-	return &u, nil
-}
-
-func (p *Postgres) VerifyPassword(ctx context.Context, email, plain string) (*core.User, error) {
-	u, err := p.GetUserByEmail(ctx, email)
-	if err != nil {
-		return nil, err
-	}
-	if bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(plain)) != nil {
+	if bcrypt.CompareHashAndPassword([]byte(u.PasswordHash),[]byte(plain)) !=nil{
 		return nil, errors.New("invalid credentials")
 	}
 	return u, nil
 }
 
-// -- Groups
-func (p *Postgres) CreateGroup(ctx context.Context, g *core.Group) error {
+func (p *Postgres) CreateGroup(ctx context.Context, g *core.Group) error{
 	g.ID = uuid.New()
-	q := `INSERT INTO groups (id, name, owner_id, created_at) VALUES ($1,$2,$3,$4)`
-	_, err := p.pool.Exec(ctx, q, g.ID, g.Name, g.OwnerID, time.Now())
-	return err
+	g.CreatedAt = time.Now()
+	return p.db.WithContext(ctx).Create(g).Error
 }
 
-func (p *Postgres) AddGroupMember(ctx context.Context, groupID, userID uuid.UUID) error {
-	q := `INSERT INTO group_members (group_id, user_id, joined_at) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`
-	_, err := p.pool.Exec(ctx, q, groupID, userID, time.Now())
-	return err
+type GroupMember struct{
+	GroupID uuid.UUID `gorm:"type:uuid"`
+	UserID uuid.UUID `gorm:"type:uuid"`
+	JoinedAt time.Time
 }
 
-func (p *Postgres) ListGroupMembers(ctx context.Context, groupID uuid.UUID) ([]core.User, error) {
-	q := `SELECT u.id, u.username, u.email, u.password_hash, u.created_at FROM users u JOIN group_members gm ON u.id = gm.user_id WHERE gm.group_id=$1`
-	rows, err := p.pool.Query(ctx, q, groupID)
+func (p *Postgres) AddGroupMember(ctx context.Context, groupId , userId uuid.UUID) error{
+	m := core.GroupMember{
+		GroupID:  groupId,
+		UserID: userId,
+		JoinedAt: time.Now(),
+	}
+
+	return p.db.WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).Create(&m).Error
+}
+func (p *Postgres) MyGroups(ctx context.Context, userId uuid.UUID) ([]core.Group,error){
+	var groups []core.Group
+
+	err := p.db.WithContext(ctx).
+		Joins("JOIN group_members gm ON gm.group_id = groups.id").
+		Where("gm.user_id = ?", userId).Preload("Owner").
+		Find(&groups).Error
+
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	var out []core.User
-	for rows.Next() {
-		var u core.User
-		if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.PasswordHash, &u.CreatedAt); err != nil {
-			return nil, err
-		}
-		out = append(out, u)
-	}
-	return out, nil
+
+	return groups, nil
 }
 
-// -- Messages
-func (p *Postgres) SaveMessage(ctx context.Context, m *core.Message) error {
+func (p *Postgres) ListGroupMembers(ctx context.Context, groupId uuid.UUID)([]core.User,error){
+	var users []core.User
+
+	err := p.db.WithContext(ctx).
+	Joins("JOIN group_members gm ON gm.user_id=users.id").
+	Where("gm.group_id = ?",groupId).Find(&users).Error
+	return users,err
+}
+
+
+func (p *Postgres) SaveMessage(ctx context.Context, m *core.Message) error{
 	m.ID = uuid.New()
-	q := `INSERT INTO messages (id, sender_id, recipient_id, group_id, content, created_at) VALUES ($1,$2,$3,$4,$5,$6)`
-	_, err := p.pool.Exec(ctx, q, m.ID, m.SenderID, m.RecipientID, m.GroupID, m.Content, time.Now())
-	return err
+	m.CreatedAt = time.Now()
+	return p.db.WithContext(ctx).Create(m).Error
 }
 
-func (p *Postgres) GetPrivateHistory(ctx context.Context, a, b uuid.UUID, limit int) ([]core.Message, error) {
-	q := `SELECT id, sender_id, recipient_id, group_id, content, created_at FROM messages WHERE (sender_id=$1 AND recipient_id=$2) OR (sender_id=$2 AND recipient_id=$1) ORDER BY created_at DESC LIMIT $3`
-	rows, err := p.pool.Query(ctx, q, a, b, limit)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []core.Message
-	for rows.Next() {
-		var m core.Message
-		if err := rows.Scan(&m.ID, &m.SenderID, &m.RecipientID, &m.GroupID, &m.Content, &m.CreatedAt); err != nil {
-			return nil, err
-		}
-		out = append(out, m)
-	}
-	return out, nil
+func (p *Postgres) GetPrivateHistory(ctx context.Context, a, b uuid.UUID, limit int)([]core.Message, error){
+	var msgs []core.Message
+	err:= p.db.WithContext(ctx).
+	Where("(sender_id = ? AND recipient_id = ?) OR (sender_id = ? AND recipient_id = ?)", a,b,b,a).
+	Order("created_at DESC").Limit(limit).Find(&msgs).Error
+	return msgs,err
 }
 
-func (p *Postgres) GetGroupHistory(ctx context.Context, groupID uuid.UUID, limit int) ([]core.Message, error) {
-	q := `SELECT id, sender_id, recipient_id, group_id, content, created_at FROM messages WHERE group_id=$1 ORDER BY created_at DESC LIMIT $2`
-	rows, err := p.pool.Query(ctx, q, groupID, limit)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []core.Message
-	for rows.Next() {
-		var m core.Message
-		if err := rows.Scan(&m.ID, &m.SenderID, &m.RecipientID, &m.GroupID, &m.Content, &m.CreatedAt); err != nil {
-			return nil, err
-		}
-		out = append(out, m)
-	}
-	return out, nil
+func (p *Postgres) GetGroupHistory(ctx context.Context, groupID uuid.UUID, limit int)([]core.Message,error){
+	var msgs []core.Message
+	err := p.db.WithContext(ctx).Where("group_id = ?",groupID).Order("created_at DESC").Limit(limit).Find(&msgs).Error
+
+	return msgs,err
 }
 
-// convenience
-func NewRepositories(pg *Postgres) *Repositories {
+func NewRepositories(pg *Postgres) *Repositories{
 	return &Repositories{pg}
 }
 
-// implement core.Repositories by embedding Postgres
-type Repositories struct{ *Postgres }
+type Repositories struct {*Postgres}
 
-func (r *Repositories) UserRepo() core.UserRepository     { return r }
-func (r *Repositories) GroupRepo() core.GroupRepository   { return r }
-func (r *Repositories) MessageRepo() core.MessageRepository { return r }
+func (r *Repositories) UserRepo() core.UserRepository { return r }
+func (r *Repositories) GroupRepo() core.GroupRepository { return r }
+func (r *Repositories) MessageRepo() core.MessageRepository {return r }
