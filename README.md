@@ -25,6 +25,9 @@ Supports:
 
 ```bash
 git clone https://github.com/NatiG100/go-chat
+```
+
+```bash
 cd go-chat
 ```
 
@@ -62,7 +65,6 @@ Password: `password` (from `docker-compose.yml`)
 
 ```sql
 CREATE DATABASE chatdb;
-\q
 ```
 
 ### 5. Install dependencies
